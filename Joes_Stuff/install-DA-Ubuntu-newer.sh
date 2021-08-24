@@ -228,7 +228,7 @@ convert_certificates_der() {
  	while read -r line; do
  	   if [[ "${line}" =~ END.*CERTIFICATE ]]; then
  	       cert_lines+=( "${line}" );
-	        : > "${CERT_DIR}${individual_certs sleep $MESSAGE_PACE;[ -1]}.crt"
+	        : > "${CERT_DIR}${individual_certs[ -1]}.crt"
  	       for cert_line in "${cert_lines[@]}"; do
  	           echo "${cert_line}" >> "${CERT_DIR}${individual_certs[ -1]}.crt";
                done;
