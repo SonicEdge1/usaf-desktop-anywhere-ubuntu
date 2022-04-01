@@ -1,13 +1,17 @@
 #!/bin/bash
 
+# This script sets up the prerequisites and utilities needed to run Desktop anywhere on Ubuntu.
+# The script is broken up into functions and has variables located at the top to make it more maintainable.
+# The "Main" functions and order they are executed in is shown at the bottom of this file.
+
+# message pace determines the pause between functions.  To run the script faster, decrease the message pace number
 MESSAGE_PACE=4
-# https://uhhz-ss-002v.us.af.mil
 DA_SERVER_ADDR=https://afrcdesktops.us.af.mil
 CERT_DOWNLOAD_DIR=/usr/share/DOD_Certs_Download
 DA_DIR=/usr/share/DesktopAnywhere_Download
 CERT_SUB_DIR=Certificates_PKCS7_v5.9_DoD
 CERT_ZIPFILE=certificates_pkcs7_DoD.zip 
-CERT_DOWNLOAD=https://dl.dod.cyber.mil/wp-content/uploads/pki-pke/zip/$CERT_ZIPFILE
+CERT_DOWNLOAD_URL=https://dl.dod.cyber.mil/wp-content/uploads/pki-pke/zip/$CERT_ZIPFILE
 VMWARE_FILE=VMware-Horizon-Client-5.5.2-18035020.x64.bundle
 VMWARE_DOWNLOAD=https://download3.vmware.com/software/view/viewclients/CART21FQ3/$VMWARE_FILE
 VMWARE_PKCS_DIR=/usr/lib/vmware/view/pkcs11
@@ -21,6 +25,7 @@ LINK_NAME=libopenscpkcs11.so
 cert_install_required=false
 
 
+# Function removes temporary directories used.  Typically executed when the script fails or at the very end.
 cleanup () {
     echo -e "\n[INFO] Removing any temporary files and directories created...\n"; \
     rm -rv $CERT_DOWNLOAD_DIR
@@ -28,6 +33,7 @@ cleanup () {
     echo -e "\n[INFO] Removed any temporary directories.\n"; \
 }
 
+# Function checks to see if the script is being executed with sudo privileges.  Exits if not.
 check_if_root() {
     echo -e "\n[INFO] Checking effective user id..."; sleep $MESSAGE_PACE
     if [[ $EUID -ne 0 ]]; then
@@ -49,8 +55,9 @@ check_if_root() {
 # "openssl" Secure Sockets Layer toolkit - cryptographic utility
 # "unzip"  De-archiver for .zip files
 # "libnss3-tools"  Network Security Service tools
-# "libgtk-3-0" graphical user interface library REMOVED - MAYBE NOT NEEDED?
+# "libgtk-3-0" graphical user interface library REMOVED - NOT NEEDED ANYMORE
 
+# Function checks for missing dependencies, and asks to install them if not detected.
 check_dependencies() {
     echo -e "\n[INFO] Checking system for necessary dependencies..."; sleep $MESSAGE_PACE
     DEPS=("tar" "coreutils" "wget" "libxkbfile1" "libatk-bridge2.0-0" "libxss1" "openssl" "unzip" "libnss3-tools")
@@ -81,14 +88,19 @@ check_dependencies() {
     echo -e "\n[INFO] Dependencies resolved..."; sleep $MESSAGE_PACE
 }
 
+# Function installs programs needed to support smart card use.
+# "opensc" Smart card utilities with support for PKCS#15 compatible cards 
+# "opensc-pkcs11" Smart card utilities with support for PKCS#15 compatible cards
+# "pcsc-tools" Some tools to use with smart cards and PC/SC
 install_card_tools() {
-	echo -e "\n[INFO] Installing opensc, opensc-pkcs11, pcsd-tools\...n"; sleep $MESSAGE_PACE;
+	echo -e "\n[INFO] Installing opensc, opensc-pkcs11, pcsc-tools\...n"; sleep $MESSAGE_PACE;
 	sudo apt install -y opensc opensc-pkcs11 pcsc-tools || \
         { echo -e "\n[FAIL] Failed to install necessary card tools!  Exiting." 1>&2; \
         exit 1; }
 	echo -e "\n[INFO] Completed install of card reader tools...\n"; sleep $MESSAGE_PACE;
 }
 
+# Function checks to see if the desktop anywhere web gateway is accessable.  Sets the global variable cert_install_required based on results
 check_if_gateway_accessible() {
 { echo -e "\n[INFO] Determining if Desktop Anywhere login gateway is accessible..." && sleep $MESSAGE_PACE && \
   wget -S --spider --timeout 20 $DA_SERVER_ADDR && \
@@ -98,6 +110,7 @@ check_if_gateway_accessible() {
   cert_install_required=true; };
 }
 
+# Function checks the gateway again using the check_if_gateway_accessible function.  Exits if gateway is not accessable after certificate installs.
 check_gateway_again() {
     check_if_gateway_accessible
     if $cert_install_required; then
@@ -106,20 +119,22 @@ check_gateway_again() {
     fi
 }
 
+# Function downloads DOD certificates.  Exits if fails.
 download_dod_certs() {
-    { test -f $CERT_DOWNLOAD_DIR/$CERT_DOWNLOAD || \
+    { test -f $CERT_DOWNLOAD_DIR/$CERT_DOWNLOAD_URL || \
         { echo -e "\n[INFO] Downloading the DOD certificates...\n"; sleep $MESSAGE_PACE;
         ( mkdir -pv $CERT_DOWNLOAD_DIR && mkdir -pv $DA_DIR ) || \
             { echo -e "\n[FAIL] Directory creation failed!  Exiting." 1>&2; \
             cleanup; \
             exit 1; }
-        wget -P $CERT_DOWNLOAD_DIR $CERT_DOWNLOAD || \
+        wget -P $CERT_DOWNLOAD_DIR $CERT_DOWNLOAD_URL || \
             { echo -e "\n[FAIL] Certificate download did not complete!  Exiting." 1>&2; sleep $MESSAGE_PACE; \
             cleanup; \
             exit 1; }
         echo -e "\n[INFO] DOD certificate download complete...\n"; sleep $MESSAGE_PACE; } }
 }
 
+# Function unzips the DOD certificates zipfile that was downloaded. Exits if fails. 
 unzip_dod_certs() {
     echo -e "\n[INFO] Unzipping DOD certificate download...\n"; sleep $MESSAGE_PACE;
     unzip $CERT_DOWNLOAD_DIR/$CERT_ZIPFILE -d $CERT_DOWNLOAD_DIR || \
@@ -129,8 +144,8 @@ unzip_dod_certs() {
     echo -e "\n[INFO] Certificates unzipped...\n"; sleep $MESSAGE_PACE;
 }
 
-# NOT USING - NOT WORKING #
-# supposed to verify certificates are valid.  **see README file downloaded with certs.
+## *NOT USING - NOT WORKING* ##
+# Function is supposed to verify certificates are valid.  **see README file downloaded with certs.
 verify_certificate_checksums() {  #Current source for certs does not work for verification **SEE README FILE Downloaded with certs
     { cd $CERT_DOWNLOAD_DIR/$CERT_SUB_DIR || { echo -e "\n[FAIL] Failed to cd into DoD certs sub-directory; Exiting." 1>&2; exit 1; } } && \
     { echo -e "\n[INFO] Verifying DoD certificate checksums..." && sleep $MESSAGE_PACE && \
@@ -143,7 +158,9 @@ verify_certificate_checksums() {  #Current source for certs does not work for ve
         exit 1; }
 }
 
-# NOT USING ##
+## *NOT USING* replaced with convert_certificates_der##
+# Function extracts and installs certificates from the downloaded p7b file
+# converts p7b file into pem file and extracts certs
 convert_certificates_pem() {
     { cd $CERT_DOWNLOAD_DIR/$CERT_SUB_DIR || \
         { pwd; echo -e "\n[FAIL] Failed to change to directory containing extracted certificates ($CERT_DOWNLOAD_DIR/$CERT_SUB_DIR); Exiting." 1>&2; exit 1; } }
@@ -205,7 +222,8 @@ convert_certificates_pem() {
       fi; };
 }
 
-# accomplishes the same as the convert_certificates_pem method using different files to extract certs from
+# Function extracts and installs certificates from the downloaded p7b file
+# converts p7b file into der file and extracts certs
 convert_certificates_der() {
     ( mkdir -pv $CERT_DIR ) || \
     { echo -e "\n[FAIL] Directory creation failed!  Exiting." 1>&2; \
@@ -231,6 +249,7 @@ convert_certificates_der() {
 	        : > "${CERT_DIR}${individual_certs[ -1]}.crt"
  	       for cert_line in "${cert_lines[@]}"; do
  	           echo "${cert_line}" >> "${CERT_DIR}${individual_certs[ -1]}.crt";
+               sleep $MESSAGE_PACE;
                done;
  	       cert_lines=( );
  	   elif [[ "${line}" =~ ^[[:space:]]*subject=.* ]]; then
@@ -245,6 +264,7 @@ convert_certificates_der() {
     done
 }
 
+# Function adds all certificates to the system CA trust
 install_certificates_auto() {
     { echo -e "\n[INFO] Adding staged DoD certificates (and any other previously staged certs) to system CA trust..." && sleep $MESSAGE_PACE && \
       update-ca-certificates --verbose && \
@@ -253,19 +273,14 @@ install_certificates_auto() {
       exit 1;};
 }
 
-
-# Unused
-copy_DAcerts_to_ca-cert_dir(){
-    sudo cp 'DOD SW CA-53.crt' /usr/share/ca-certificates/DODSWCA-53.crt
-    sudo cp 'DoD Root CA 3.crt' /usr/share/ca-certificates/DoDRootCA3.crt
-}
-
-# Unused
+## Unused ##
+# Function gets rid of spaces that exist in the filename
 get_rid_of_spaces_in_fileNames(){
     for f in *\ *; do mv "$f" "${f// /_}"; done
 }
 
-# Unused
+## Unused - replaced with install_certificates_auto ##
+# Function pulls up a GUI to walk the user through adding the DOD Certificates to the system CA trust
 install_certificates_manual() {
     echo -e "\n[INFO] Installing DOD Certificates...\n"; sleep $MESSAGE_PACE;
     zenity --info --text '<span foreground="black" font="24">Instructions: \
@@ -277,7 +292,8 @@ install_certificates_manual() {
         exit 1; }
 }
 
-#https://docs.vmware.com/en/VMware-Horizon-Client-for-Linux/5.4/horizon-client-linux-installation/GUID-A5A6332F-1DEC-4D77-BD6E-1362596A2E76.html
+# Function installs VMware Horizion Client and sets preferences
+# Reference Documentation: https://docs.vmware.com/en/VMware-Horizon-Client-for-Linux/5.4/horizon-client-linux-installation/GUID-A5A6332F-1DEC-4D77-BD6E-1362596A2E76.html
 install_vmware() {
     echo -e "\n[INFO] Checking if VMWare Horizon client is already installed..."; sleep $MESSAGE_PACE;
     if hash vmware-view 2>/dev/null; then
@@ -315,6 +331,7 @@ install_vmware() {
     fi;
 }
 
+# Function creates a symbolic link that is vital for the VMware to so it finds the DOD certificates
 create_symbolic_link_to_OpenSC_module() {
     echo -e "\n[INFO] Creating symbolic link to OpenSC module..."; sleep $MESSAGE_PACE;
     { mkdir -v ${SYM_LINK_FOLDER} || \
@@ -324,6 +341,7 @@ create_symbolic_link_to_OpenSC_module() {
     echo -e "\n[INFO] Successfully created symbolic link to OpenSC module..."; sleep $MESSAGE_PACE;
 }
 
+# Function displays a pop-up message that displays the servers avavilable for logging into NIPPR DA
 install_complete() {
     echo -e "\n[INFO] Ubuntu is now ready to run the VMware Horizon Client (Desktop Anywhere).\n"; sleep $MESSAGE_PACE;
     zenity --info --text '<span foreground="black" font="24">Instructions: \
@@ -336,6 +354,7 @@ install_complete() {
     \n\n\n\n<i>(pressing the OK button closes this information window)</i>' --width=700 --height=300 &
 }
 
+# Function usses several helper functions to walk through all the steps of installing DOD certificates
 install_cert_steps() {
     if $cert_install_required; then
         download_dod_certs
@@ -346,6 +365,7 @@ install_cert_steps() {
     fi
 }
 
+# Following is the "main" set of functions used to install Desktop Anywhere (DA)
 check_if_root
 check_dependencies #My Ubuntu install contained everything neeeded. Minimal install could be different.
 install_card_tools
@@ -354,7 +374,6 @@ install_cert_steps #uses several helper functions
 check_gateway_again
 install_vmware
 create_symbolic_link_to_OpenSC_module
-#ask to install certs for chrome / firefox (don't have this working yet)
 cleanup
 install_complete
 echo DONE
