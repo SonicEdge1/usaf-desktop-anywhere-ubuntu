@@ -257,27 +257,27 @@ note() {
   read -r -d '' FILE_A_CONTENTS << EOM
     \nsigningEmail=\$(gpgsm --list-secret-keys | grep aka |  awk '{ print \$2 }')
     \nsigningkey=\$( gpgsm --list-secret-keys | egrep '(key usage|ID)' | grep -B 1 digitalSignature | awk '/ID/ {print \$2}')
-    \ngit config --global user.email \$signingEmail
-    \ngit config --global user.signingkey \$signingkey
-    \ngit config --global gpg.format x509
-    \ngit config --global gpg.x509.program gpgsm
-    \ngit config --global commit.gpgsign true
+    \ngit config user.email \$signingEmail
+    \ngit config user.signingkey \$signingkey
+    \ngit config gpg.format x509
+    \ngit config gpg.x509.program gpgsm
+    \ngit config commit.gpgsign true
 EOM
     zenity --info --width=800 --height=300 --text="Run the following commands in the terminal if you wish to set up git gpg signing globally: \
     \n\n $FILE_A_CONTENTS"
 }
 
-# Function updates git configs for gpg signing globally
-add_git_gpg_sign_globally() {
+# Function updates git configs for gpg signing
+add_git_gpg_sign() {
   echo -e "\n[INFO] Configuring git for gpg signing...\n"; sleep $MESSAGE_PACE;
   (
     signingEmail=$(gpgsm --list-secret-keys | grep aka |  awk '{ print $2 }') && \
     signingkey=$( gpgsm --list-secret-keys | egrep '(key usage|ID)' | grep -B 1 digitalSignature | awk '/ID/ {print $2}') && \
-    git config --global user.email $signingEmail && \
-    git config --global user.signingkey $signingkey && \
-    git config --global gpg.format x509 && \
-    git config --global gpg.x509.program gpgsm && \
-    git config --global commit.gpgsign true \
+    git config user.email $signingEmail && \
+    git config user.signingkey $signingkey && \
+    git config gpg.format x509 && \
+    git config gpg.x509.program gpgsm && \
+    git config commit.gpgsign true \
   ) || { \
   { echo -e "\n[FAIL] Failed to configure git!  Exiting." 1>&2; \
     exit 1; }
@@ -315,7 +315,7 @@ verify_certificate_num
 import_root_CRL
 restart_GPG_agent
 cleanup
-ask_and_run_function "set up git for gpg signing globally" add_git_gpg_sign_globally
+ask_and_run_function "set up git for gpg signing (this repo only)" add_git_gpg_sign
 echo "DONE"
 
 # First Commit:
