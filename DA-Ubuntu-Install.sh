@@ -12,7 +12,7 @@ DA_DIR=/usr/share/DesktopAnywhere_Download
 CERT_SUB_DIR=certificates_pkcs7_v5_12_dod
 CERT_ZIPFILE=unclass-certificates_pkcs7_DoD.zip 
 CERT_DOWNLOAD_URL=https://dl.dod.cyber.mil/wp-content/uploads/pki-pke/zip/$CERT_ZIPFILE
-VMWARE_FILE=VMware-Horizon-Client-2206-8.6.0-20094634.x64.bundle
+VMWARE_FILE=VMware-Horizon-Client-2312-8.12.0-23149323.x64.bundle
 VMWARE_DOWNLOAD=https://download3.vmware.com/software/CART23FQ2_LIN64_2206/$VMWARE_FILE
 VMWARE_PKCS_DIR=/usr/lib/vmware/view/pkcs11
 CERT_DIR=/usr/local/share/ca-certificates/dod/
@@ -25,10 +25,10 @@ LINK_NAME=libopenscpkcs11.so
 cert_install_required=false
 
 # Function removes temporary directories used.  Typically executed when the script fails or at the very end.
+# Leaves DA_DIR in place as the VMWARE_FILE is needed to uninstall / upgrade
 cleanup () {
     echo -e "\n[INFO] Removing any temporary files and directories created...\n"; \
     rm -rv $CERT_DOWNLOAD_DIR
-    rm -rv $DA_DIR
     echo -e "\n[INFO] Removed any temporary directories.\n"; \
 }
 
